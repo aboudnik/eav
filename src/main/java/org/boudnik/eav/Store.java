@@ -9,6 +9,13 @@ import java.util.Map;
  */
 public class Store {
 
+    private final Map<Object, Map<String, Map<String, Object>>> data = implementation();
+
+    @FunctionalInterface
+    public interface Strategy {
+        void merge(Map<String, Object> src, Map<String, Object> dst);
+    }
+
     public static final Strategy ADD = (src, dst) -> {
         dst.putAll(src);
     };
@@ -17,8 +24,6 @@ public class Store {
         dst.clear();
         ADD.merge(src, dst);
     };
-
-    private final Map<Object, Map<String, Map<String, Object>>> data = new HashMap<>();
 
     private <K, V> Map<K, V> implementation() {
         return new HashMap<>();
@@ -32,10 +37,8 @@ public class Store {
         data.clear();
     }
 
-    public void put(Object key, String type, Map<String, Object> map, Strategy strategy) {
-        Map<String, Map<String, Object>> bucket = obtain(data, key);
-        Map<String, Object> cell = obtain(bucket, type);
-        strategy.merge(map, cell);
+    public void put(Object key, String type, Map<String, Object> values, Strategy strategy) {
+        strategy.merge(values, obtain(obtain(data, key), type));
     }
 
     private <K, T, V> Map<T, V> obtain(Map<K, Map<T, V>> map, K key) {
@@ -44,15 +47,5 @@ public class Store {
             map.put(key, value = implementation());
         }
         return value;
-    }
-
-    /**
-     * @author Alexandre_Boudnik
-     * @since 05/12/17 02:15
-     */
-    @FunctionalInterface
-    public static interface Strategy {
-        void merge(Map<String, Object> src, Map<String, Object> dst);
-
     }
 }
