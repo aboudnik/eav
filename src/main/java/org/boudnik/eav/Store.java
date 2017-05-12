@@ -48,4 +48,21 @@ public class Store {
         }
         return value;
     }
+
+    public Map<String, Map<String, Object>> get(Object key) {
+        return data.get(key);
+    }
+
+    public Map<Object, Map<String, Object>> getByType(String type) {
+        Map<Object, Map<String, Object>> result = implementation();
+        for (Map.Entry<Object, Map<String, Map<String, Object>>> byKey : data.entrySet()) {
+            Map<String, Map<String, Object>> value = byKey.getValue();
+            for (Map.Entry<String, Map<String, Object>> entry : value.entrySet()) {
+                if (entry.getKey().equals(type)) {
+                    result.put(byKey.getKey(), entry.getValue());
+                }
+            }
+        }
+        return result;
+    }
 }

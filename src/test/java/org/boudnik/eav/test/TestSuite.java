@@ -6,6 +6,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author Alexandre_Boudnik
@@ -47,6 +48,9 @@ public class TestSuite {
             put("value", 100);
         }}, Store.REPLACE);
         store.print();
+
+        Map<Object, Map<String, Object>> byType = store.getByType("person");
+        System.out.println("byType = " + byType);
     }
 
 }
