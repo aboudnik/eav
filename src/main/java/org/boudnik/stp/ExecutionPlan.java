@@ -1,5 +1,7 @@
 package org.boudnik.stp;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.util.function.Function;
 
 /**
@@ -76,6 +78,8 @@ public class ExecutionPlan {
         ExecutionPlan plan =
                 sequential(
                         parallel(
+                                check("withdrawal", doc -> StringUtils.isNumeric(doc.getString("src"))),
+                                check("beneficiary", doc -> StringUtils.isNumeric(doc.getString("dst"))),
                                 check("1", doc -> doc.getNumber("1") > 1),
                                 check("2", doc -> doc.getNumber("2") > 1),
                                 check("3", doc -> doc.getNumber("3") > 1),
@@ -87,7 +91,10 @@ public class ExecutionPlan {
                                         check("c", doc -> doc.getNumber("c") > 1)
                                 )
                         ),
-                        async("fraud", doc -> "MMM".equals(doc.getString("dstName"))),
+                        parallel(
+                                async("fraud", doc -> "МММ".equals(doc.getString("dstName"))),
+                                async("fraud", doc -> "Хопер Инвест".equals(doc.getString("dstName")))
+                        ),
                         async("submit", doc -> submit("ЦАБС", doc))
                 );
         System.out.println(plan);
