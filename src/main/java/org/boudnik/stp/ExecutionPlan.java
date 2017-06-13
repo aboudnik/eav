@@ -99,4 +99,10 @@ public class ExecutionPlan {
                 );
         System.out.println(plan);
     }
+
+    public static interface Document {
+        String getString(final String field);
+
+        Double getNumber(final String field);
+    }
 }
