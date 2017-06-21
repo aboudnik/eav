@@ -1,7 +1,11 @@
 package org.boudnik.stp;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.ignite.Ignite;
+import org.apache.ignite.Ignition;
+import org.apache.ignite.lang.IgniteCallable;
 
+import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
 /**
@@ -30,6 +34,25 @@ public class ExecutionPlan {
         this(name, null, planList, isSequential, isSync);
     }
 
+    public void save() {
+        walker(plan -> {/*todo actual save for node*/
+            return true;
+        });
+    }
+
+    public Boolean walker(Function<ExecutionPlan, Boolean> function) {
+        //todo walks through
+        return function.apply(this);
+    }
+
+    public Boolean execute(Document document, ExecutionPlan plan, Token token) {
+        return Ignition.ignite().compute().affinityCall("execute", null, (IgniteCallable<Boolean>) () -> walker(plan1 -> {
+    /*todo */
+            ExecutorService exec = Ignition.ignite().executorService(); // todo use it
+            return plan.check.apply(document);
+        }));
+    }
+
     @SuppressWarnings("WeakerAccess")
     public static ExecutionPlan check(String name, Function<Document, Boolean> check) {
         return new ExecutionPlan(name, check, new ExecutionPlan[0], true, true);
@@ -48,6 +71,11 @@ public class ExecutionPlan {
     @SuppressWarnings("WeakerAccess")
     public static ExecutionPlan async(String name, Function<Document, Boolean> check) {
         return new ExecutionPlan("async: " + name, check, new ExecutionPlan[0], true, false);
+    }
+
+    @SuppressWarnings("WeakerAccess")
+    public static ExecutionPlan state(String name, Control... controls) {
+        return null;
     }
 
     @SuppressWarnings({"SameParameterValue", "unused"})
@@ -75,6 +103,12 @@ public class ExecutionPlan {
     }
 
     public static void main(String[] args) {
+
+        Ignite ignite = Ignition.ignite();
+
+//        ignite.compute().affinityCall("execution", );
+
+        int jopa = 5;
         ExecutionPlan plan =
                 sequential(
                         parallel(
@@ -84,16 +118,17 @@ public class ExecutionPlan {
                                 check("2", doc -> doc.getNumber("2") > 1),
                                 check("3", doc -> doc.getNumber("3") > 1),
                                 check("4", doc -> doc.getNumber("4") > 1),
-                                check("5", doc -> doc.getNumber("5") > 1),
+                                check("5", doc -> doc.getNumber("5") > jopa),
                                 sequential(
                                         check("a", doc -> doc.getNumber("a") > 1),
                                         check("b", doc -> doc.getNumber("b") > 1),
                                         check("c", doc -> doc.getNumber("c") > 1)
                                 )
                         ),
+                        state("Ready to sign", Control.SIGN, Control.CANCEL),
                         parallel(
-                                async("fraud", doc -> "МММ".equals(doc.getString("dstName"))),
-                                async("fraud", doc -> "Хопер Инвест".equals(doc.getString("dstName")))
+                                async("fraud-MMM", doc -> "МММ".equals(doc.getString("dstName"))),
+                                async("fraud-Khopyor", doc -> "Хопер Инвест".equals(doc.getString("dstName")))
                         ),
                         async("submit", doc -> submit("ЦАБС", doc))
                 );
@@ -104,5 +139,16 @@ public class ExecutionPlan {
         String getString(final String field);
 
         Double getNumber(final String field);
+    }
+
+    public static interface Token {
+        Object getString(final String field);
+    }
+
+    public static class Control {
+        static final Control CANCEL = new Control();
+        static final Control CREATE = new Control();
+        static final Control SIGN = new Control();
+        static final Control SUBMIT = new Control();
     }
 }
