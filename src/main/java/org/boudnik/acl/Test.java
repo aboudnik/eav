@@ -1,6 +1,7 @@
 package org.boudnik.acl;
 
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * @author Alexandre_Boudnik
@@ -14,16 +15,16 @@ public class Test {
 
     public static class RuledMethod<T, R> extends AbstractMethod<T, R> {
         AbstractMethod<T, R> method;
-        Function<T, Boolean> rule;
+        Predicate<T> rule;
 
-        public RuledMethod(AbstractMethod<T, R> method, Function<T, Boolean> rule) {
+        public RuledMethod(AbstractMethod<T, R> method, Predicate<T> rule) {
             this.method = method;
             this.rule = rule;
         }
 
         @Override
         public R apply(T t) {
-            if (rule.apply(t))
+            if (rule.test(t))
                 return method.apply(t);
             else
                 throw new RuntimeException();

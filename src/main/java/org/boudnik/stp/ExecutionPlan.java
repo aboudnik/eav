@@ -7,6 +7,7 @@ import org.apache.ignite.lang.IgniteCallable;
 
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * @author Alexandre_Boudnik
@@ -15,14 +16,14 @@ import java.util.function.Function;
 public class ExecutionPlan {
     private String name;
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
-    private Function<Document, Boolean> check;
+    private Predicate<Document> check;
     private ExecutionPlan[] planList;
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private boolean isSequential;
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private boolean isSync;
 
-    private ExecutionPlan(String name, Function<Document, Boolean> check, ExecutionPlan[] planList, boolean isSequential, boolean isSync) {
+    private ExecutionPlan(String name, Predicate<Document> check, ExecutionPlan[] planList, boolean isSequential, boolean isSync) {
         this.name = name;
         this.check = check;
         this.planList = planList;
@@ -40,21 +41,24 @@ public class ExecutionPlan {
         });
     }
 
-    public Boolean walker(Function<ExecutionPlan, Boolean> function) {
-        //todo walks through
-        return function.apply(this);
+    private Boolean walker(Function<ExecutionPlan, Boolean> function) {
+        boolean r = function.apply(this);
+        for (int i = 0; r && i < planList.length; i++) {
+            r &= planList[i].walker(function);
+        }
+        return r;
     }
 
     public Boolean execute(Document document, ExecutionPlan plan, Token token) {
         return Ignition.ignite().compute().affinityCall("execute", null, (IgniteCallable<Boolean>) () -> walker(plan1 -> {
     /*todo */
             ExecutorService exec = Ignition.ignite().executorService(); // todo use it
-            return plan.check.apply(document);
+            return plan.check.test(document);
         }));
     }
 
     @SuppressWarnings("WeakerAccess")
-    public static ExecutionPlan check(String name, Function<Document, Boolean> check) {
+    public static ExecutionPlan check(String name, Predicate<Document> check) {
         return new ExecutionPlan(name, check, new ExecutionPlan[0], true, true);
     }
 
@@ -69,14 +73,16 @@ public class ExecutionPlan {
     }
 
     @SuppressWarnings("WeakerAccess")
-    public static ExecutionPlan async(String name, Function<Document, Boolean> check) {
+    public static ExecutionPlan async(String name, Predicate<Document> check) {
         return new ExecutionPlan("async: " + name, check, new ExecutionPlan[0], true, false);
     }
 
+/*
     @SuppressWarnings("WeakerAccess")
     public static ExecutionPlan state(String name, Control... controls) {
         return null;
     }
+*/
 
     @SuppressWarnings({"SameParameterValue", "unused"})
     private static Boolean submit(String ABS, Document doc) {
@@ -104,11 +110,10 @@ public class ExecutionPlan {
 
     public static void main(String[] args) {
 
-        Ignite ignite = Ignition.ignite();
+//        Ignite ignite = Ignition.ignite();
 
 //        ignite.compute().affinityCall("execution", );
 
-        int jopa = 5;
         ExecutionPlan plan =
                 sequential(
                         parallel(
@@ -118,30 +123,35 @@ public class ExecutionPlan {
                                 check("2", doc -> doc.getNumber("2") > 1),
                                 check("3", doc -> doc.getNumber("3") > 1),
                                 check("4", doc -> doc.getNumber("4") > 1),
-                                check("5", doc -> doc.getNumber("5") > jopa),
+                                check("5", doc -> doc.getNumber("5") > 1),
                                 sequential(
                                         check("a", doc -> doc.getNumber("a") > 1),
                                         check("b", doc -> doc.getNumber("b") > 1),
                                         check("c", doc -> doc.getNumber("c") > 1)
                                 )
                         ),
-                        state("Ready to sign", Control.SIGN, Control.CANCEL),
+//                        state("Ready to sign", Control.SIGN, Control.CANCEL),
                         parallel(
                                 async("fraud-MMM", doc -> "МММ".equals(doc.getString("dstName"))),
                                 async("fraud-Khopyor", doc -> "Хопер Инвест".equals(doc.getString("dstName")))
                         ),
                         async("submit", doc -> submit("ЦАБС", doc))
                 );
+        boolean r = plan.walker(p -> {
+            System.out.println("p.name = " + p.name);
+            return true;
+        });
+
         System.out.println(plan);
     }
 
-    public static interface Document {
+    public interface Document {
         String getString(final String field);
 
         Double getNumber(final String field);
     }
 
-    public static interface Token {
+    public interface Token {
         Object getString(final String field);
     }
 
