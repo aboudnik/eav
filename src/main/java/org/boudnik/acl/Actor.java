@@ -1,5 +1,6 @@
 package org.boudnik.acl;
 
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -9,10 +10,23 @@ import java.util.function.Function;
  * @since 20-Jun-2017 18:43:29
  */
 public class Actor {
-    private int id;
-    private Function[] methods;
-    public Group group;
-    public Permission permission;
-    public RuledMethod ruledMethod;
+    private String name;
+    private Map<String, Function<?, ?>> methods;
 
+    public Actor(String name, Map<String, Function<?, ?>> methods) {
+        this.name = name;
+        this.methods = methods;
+    }
+
+    public Map<String, Function<?, ?>> getMethods() {
+        return methods;
+    }
+
+    @Override
+    public String toString() {
+        return "Actor{" +
+                "name='" + name + '\'' +
+                ", methods=" + methods.keySet() +
+                '}';
+    }
 }
